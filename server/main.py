@@ -16,7 +16,7 @@ clients = {
     },
     "cli-client": {
         "client_secret": "secret",
-        "redirect_uri": None,
+        "redirect_uri": "http://localhost:8081/callback",
     },
 }
 
