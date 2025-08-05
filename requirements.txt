@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+requests
+qrcode
+pytest
+httpx
+python-multipart
