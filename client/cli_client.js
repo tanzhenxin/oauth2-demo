@@ -3,6 +3,7 @@ import http from 'http';
 import { URL, URLSearchParams } from 'url';
 import open from 'open';
 import qrcode from 'qrcode-terminal';
+import crypto from 'crypto';
 
 const SERVER = 'http://localhost:8000';
 const CLIENT_ID = 'cli-client';
@@ -45,10 +46,24 @@ async function runBrowserFlow() {
 }
 
 async function runDeviceFlow() {
+  const base64url = (buf) =>
+    buf
+      .toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+  const codeVerifier = base64url(crypto.randomBytes(32));
+  const codeChallenge = base64url(
+    crypto.createHash('sha256').update(codeVerifier).digest()
+  );
   const resp = await fetch(`${SERVER}/device_authorization`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ client_id: CLIENT_ID }),
+    body: new URLSearchParams({
+      client_id: CLIENT_ID,
+      code_challenge: codeChallenge,
+      code_challenge_method: 'S256',
+    }),
   });
   const data = await resp.json();
   console.log('Visit this URL to authorize:');
@@ -64,7 +79,7 @@ async function runDeviceFlow() {
         grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
         device_code: data.device_code,
         client_id: CLIENT_ID,
-        client_secret: CLIENT_SECRET,
+        code_verifier: codeVerifier,
       }),
     });
     const tokenJson = await tokenResp.json();

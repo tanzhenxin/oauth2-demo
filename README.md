@@ -36,6 +36,7 @@ node client/cli_client.js browser
 
 For the device flow, the script prints a verification URL and displays a QR code. Open the URL (or scan the QR code) and authorize the device. The CLI polls the server until authorization completes and then prints the access token.
 
+The device flow uses PKCE: a code challenge is sent when requesting a device code and the matching code verifier is included when exchanging the device code for tokens, removing the need for a client secret.
 ## Running Tests
 
 ```bash

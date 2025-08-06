@@ -1,5 +1,7 @@
 import uuid
 import time
+import hashlib
+import base64
 from typing import Optional
 
 import requests
@@ -86,6 +88,7 @@ def token(
     client_id: str = Form(None),
     client_secret: str = Form(None),
     device_code: str = Form(None),
+    code_verifier: str = Form(None),
 ):
     if grant_type == "authorization_code":
         if code not in auth_codes:
@@ -107,6 +110,12 @@ def token(
             return {"error": "invalid_grant"}
         if not record.get("approved"):
             return {"error": "authorization_pending"}
+        if not code_verifier:
+            return {"error": "invalid_request"}
+        digest = hashlib.sha256(code_verifier.encode()).digest()
+        challenge = base64.urlsafe_b64encode(digest).rstrip(b"=").decode()
+        if challenge != record.get("code_challenge"):
+            return {"error": "invalid_grant"}
         access_token = uuid.uuid4().hex
         tokens[access_token] = {"client_id": record["client_id"]}
         del device_codes[device_code]
@@ -117,15 +126,22 @@ def token(
 
 # ---- Device Authorization Flow ----
 @app.post("/device_authorization")
-def device_authorization(client_id: str = Form(...)):
+def device_authorization(
+    client_id: str = Form(...),
+    code_challenge: str = Form(...),
+    code_challenge_method: str = Form("S256"),
+):
     if client_id not in clients:
         return {"error": "invalid_client"}
+    if code_challenge_method != "S256":
+        return {"error": "invalid_request"}
     device_code = uuid.uuid4().hex
     user_code = uuid.uuid4().hex[:8]
     device_codes[device_code] = {
         "user_code": user_code,
         "client_id": client_id,
         "approved": False,
+        "code_challenge": code_challenge,
     }
     verification_uri = "http://localhost:8000/device"
     verification_uri_complete = f"{verification_uri}?user_code={user_code}"
